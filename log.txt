@@ -1,0 +1,17 @@
+Converged after 7 iterations.
+Total Energy
+-2.52854
+
+Electronic Energy
+-3.89541
+
+Nuclear Repulsion
+1.36687
+
+Orbital Energy
+-1.57730
+-0.25930
+
+Density Matrix
+tensor([[1.6843, 0.2242],
+        [0.2242, 0.0298]])
