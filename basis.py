@@ -70,9 +70,9 @@ def gp(alpha_a, alpha_b, ra, rb):
     diff = torch.square(ln.norm(ra - rb))
     N = torch.pow((4 * alpha_a * alpha_b / torch.square(PI)), 0.75)
     K = N * torch.exp(- alpha_a * alpha_b / ps * diff)
-    ext_alpha_a = alpha_a.unsqueeze(-1).repeat_interleave(3, -1)
-    ext_alpha_b = alpha_b.unsqueeze(-1).repeat_interleave(3, -1)
-    rp = (ext_alpha_a * ra + ext_alpha_b * rb) / ps
+    ext_alpha_a = alpha_a.unsqueeze(-1)
+    ext_alpha_b = alpha_b.unsqueeze(-1)
+    rp = (ext_alpha_a * ra + ext_alpha_b * rb) / ps.unsqueeze(-1)
     return ps, diff, K, rp
 
 
@@ -130,7 +130,7 @@ def Fo_multi(t):
     """
     retval = torch.pow(0.5 * (PI / t), 0.5) * erf(torch.pow(t, 0.5))
     ones = torch.ones_like(t)
-    retval = torch.where(t==0, ones, retval)
+    retval = torch.where(t == 0, ones, retval)
     return retval
 
 
@@ -150,11 +150,10 @@ def pt(alpha_a, alpha_b, ra, rb, rc, charge):
     ps: alpha a + alpha b for 3, 3
     diff: ra, rb norm square
     K: exchange 3, 3
+    rp: 3, 3, 3
     """
     ps, diff, K, rp = gp(alpha_a, alpha_b, ra, rb)
-    print(rp)
     mul = torch.pow(ln.norm(rp - rc, dim=-1), 2)
-    print(mul)
     fo = Fo_multi(ps * mul)
     return (-2 * PI * charge / ps) * K * fo
 
@@ -173,10 +172,21 @@ def multi(A, B, C, D):
     return multi_factor * K_ab * K_cd * fo
 
 
-def SD_successive_density_matrix_elements(Ptilde, P, basis_size):
-    x = 0
-    for i in range(basis_size):
-        for j in range(basis_size):
-            x += torch.pow(basis_size, -2) * \
-                 torch.pow((Ptilde[i, j] - P[i, j]), 2)
-    return torch.pow(x, 0.5)
+def mt(alpha_a, alpha_b, alpha_c, alpha_d, ra, rb, rc, rd):
+    """
+    ps_ab, ps_cd: 3, 3 => 3, 3, 3, 3
+    rp_ab, rp_cd: 3, 3, 3
+    """
+    ps_ab, diff_ab, K_ab, rp_ab = gp(alpha_a, alpha_b, ra, rb)
+    ps_cd, diff_cd, K_cd, rp_cd = gp(alpha_c, alpha_d, rc, rd)
+    ext_ps_ab = ps_ab.unsqueeze(-1).unsqueeze(-1)
+    ext_ps_cd = ps_cd.unsqueeze(0).unsqueeze(0)
+    ext_rp_ab = rp_ab.unsqueeze(-2).unsqueeze(-2)
+    ext_rp_cd = rp_cd.unsqueeze(0).unsqueeze(0)
+    ext_K_ab = K_ab.unsqueeze(-1).unsqueeze(-1)
+    ext_K_cd = K_cd.unsqueeze(0).unsqueeze(0)
+    multi_factor = torch.pow(2 * PI, 2.5) \
+        / torch.pow(ext_ps_ab * ext_ps_cd * (ext_ps_ab + ext_ps_cd), 0.5)
+    mul = torch.pow(ln.norm(ext_rp_ab - ext_rp_cd, dim=-1), 2)
+    fo = Fo_multi(ext_ps_ab * ext_ps_cd / (ext_ps_ab + ext_ps_cd) * mul)
+    return multi_factor * ext_K_ab * ext_K_cd * fo
