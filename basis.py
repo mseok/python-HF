@@ -6,6 +6,8 @@ import torch.linalg as ln
 
 from utils import convert_to_tensor
 
+torch.set_default_tensor_type(torch.DoubleTensor)
+
 """
 Global Variables
 """

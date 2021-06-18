@@ -37,11 +37,6 @@ def HF(n_atoms, atom_symbols, atom_coordinates, n_basis):
     potential = torch.zeros(n_basis, n_basis)
     multi_electron = torch.zeros(n_basis, n_basis, n_basis, n_basis)
 
-    charges = [basis.CHARGES[atom] for atom in atom_symbols]
-    charges = convert_to_tensor(charges)
-    max_qns = [basis.MAX_QN[atom] for atom in atom_symbols]
-    atom_zetas = [basis.ZETA[atom] for atom in atom_symbols]
-
     for idx_a, val_a in enumerate(atom_symbols):
         Za = basis.CHARGES[val_a]
         Ra = atom_coordinates[idx_a]
@@ -97,11 +92,11 @@ def sym_orthogonalize(tensor):
 def self_consistent(n_basis, h_core, multi_electron, ortho_sym,
                     max_n_iter=1000, threshold=1e-4):
     p = torch.zeros(n_basis, n_basis)
-    prev_p = p.clone()
     p_list = []
 
     done = False
     while not done:
+        prev_p = p.clone()
         G = torch.zeros(n_basis, n_basis)
         for i in range(n_basis):
             for j in range(n_basis):
@@ -117,7 +112,6 @@ def self_consistent(n_basis, h_core, multi_electron, ortho_sym,
         evals = evals.real
         evecs = evecs.real
         idx = evals.argsort()
-        evals = evals[idx]
         _c = evecs[:, idx]
         c = torch.mm(ortho_sym, _c)
 
@@ -127,11 +121,10 @@ def self_consistent(n_basis, h_core, multi_electron, ortho_sym,
 
         p_list.append(p)
         error = compute_error(prev_p, p)
-        prev_p = p.clone()
 
         if len(p_list) > max_n_iter:
             done = True
-        if error < threshold:
+        if error <= threshold:
             done = True
 
     return p_list, evals, c, p, fock
